@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="wav2bcwav/wav2bcwav_gui.vbproj" />
+  <Project Path="wav2bfwav/wav2bfwav_gui.vbproj" />
+  <Project Path="wav2brwav/wav2brwav_gui.vbproj" />
+</Solution>
