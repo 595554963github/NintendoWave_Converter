@@ -119,34 +119,6 @@ Class MainWindow
         End Try
     End Sub
 
-    Private Sub btnSelectFolder_Click(sender As Object, e As RoutedEventArgs)
-        If isSelecting Then Return
-        isSelecting = True
-
-        Try
-            If isProcessing Then
-                MessageBox.Show("正在处理中,请等待当前任务完成", "提示", MessageBoxButton.OK, MessageBoxImage.Information)
-                Return
-            End If
-
-            Dim folderDialog As New Microsoft.Win32.OpenFolderDialog()
-            folderDialog.Title = "选择包含WAV文件的文件夹"
-
-            Dim result = folderDialog.ShowDialog()
-            If result = True Then
-                Dim wavFiles = System.IO.Directory.GetFiles(folderDialog.FolderName, "*.wav", System.IO.SearchOption.AllDirectories)
-                If wavFiles.Length > 0 Then
-                    Dim sortedFiles = wavFiles.OrderBy(Function(f) f, New NaturalStringComparer()).ToList()
-                    AddFiles(sortedFiles)
-                Else
-                    MessageBox.Show("该文件夹中没有找到WAV文件", "提示", MessageBoxButton.OK, MessageBoxImage.Information)
-                End If
-            End If
-        Finally
-            isSelecting = False
-        End Try
-    End Sub
-
     Private Sub AddFiles(files As List(Of String))
         Dim sortedFiles = files.OrderBy(Function(f) f, New NaturalStringComparer()).ToList()
         For Each file In sortedFiles
@@ -206,7 +178,7 @@ Class MainWindow
 
     Private Sub btnProcess_Click(sender As Object, e As RoutedEventArgs)
         If inputPaths.Count = 0 Then
-            MessageBox.Show("请先选择WAV文件或文件夹", "提示", MessageBoxButton.OK, MessageBoxImage.Information)
+            MessageBox.Show("请先选择WAV文件", "提示", MessageBoxButton.OK, MessageBoxImage.Information)
             Return
         End If
 
@@ -218,7 +190,6 @@ Class MainWindow
         isProcessing = True
         btnProcess.IsEnabled = False
         btnSelectFiles.IsEnabled = False
-        btnSelectFolder.IsEnabled = False
         btnClear.IsEnabled = False
         txtStatus.Text = $"开始处理{inputPaths.Count}个文件..."
 
@@ -250,7 +221,6 @@ Class MainWindow
                               txtStatus.Text = $"处理完成:成功{successCount}个,失败{failCount}个"
                               btnProcess.IsEnabled = True
                               btnSelectFiles.IsEnabled = True
-                              btnSelectFolder.IsEnabled = True
                               btnClear.IsEnabled = True
                               isProcessing = False
                           End Sub)
