@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="wav2bcwav_任天堂3ds" 
-        Height="400" Width="600" 
+        Height="600" Width="800" 
         WindowStartupLocation="CenterScreen"
         Loaded="Window_Loaded">
 
@@ -18,7 +18,6 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <TextBox Grid.Column="0" x:Name="txtFilePath" IsReadOnly="True" 
@@ -28,9 +27,6 @@
 
             <Button Grid.Column="1" x:Name="btnSelectFiles" Content="选择文件" 
                     Width="90" Height="30" Margin="5,0,0,0" Click="btnSelectFiles_Click"/>
-
-            <Button Grid.Column="2" x:Name="btnSelectFolder" Content="选择文件夹" 
-                    Width="90" Height="30" Margin="5,0,0,0" Click="btnSelectFolder_Click"/>
         </Grid>
 
         <GroupBox Grid.Row="1" Header="编码格式" Margin="0,5" Padding="5">
