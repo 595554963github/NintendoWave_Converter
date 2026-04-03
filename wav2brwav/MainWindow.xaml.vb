@@ -1,5 +1,4 @@
 Imports System.IO
-
 Class MainWindow
     Private inputPaths As New List(Of String)
     Private selectedFormat As String = "--adpcm"
@@ -251,64 +250,121 @@ Class MainWindow
                                       Dim fileNameWithoutExt As String = System.IO.Path.GetFileNameWithoutExtension(inputFile)
                                       Dim outputFileName As String = fileNameWithoutExt & "." & selectedFormatName & ".brwav"
                                       Dim outputFilePath As String = System.IO.Path.Combine(directory, outputFileName)
-                                      Dim arguments As String = $"{selectedFormat} ""{inputFile}"""
 
-                                      Dim processInfo As New ProcessStartInfo()
-                                      processInfo.FileName = _tempExePath
-                                      processInfo.Arguments = arguments
-                                      processInfo.UseShellExecute = False
-                                      processInfo.RedirectStandardOutput = True
-                                      processInfo.RedirectStandardError = True
-                                      processInfo.CreateNoWindow = True
-                                      processInfo.WorkingDirectory = System.IO.Path.GetDirectoryName(_tempExePath)
+                                      If selectedFormatName = "adpcm" Then
+                                          Dim arguments As String = $"{selectedFormat} ""{inputFile}"""
+                                          Return ConvertDirect(inputFile, arguments, outputFilePath, fileNameWithoutExt, directory)
+                                      Else
+                                          Dim tempDir = System.IO.Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString())
+                                          System.IO.Directory.CreateDirectory(tempDir)
 
-                                      Using process As Process = Process.Start(processInfo)
-                                          process.WaitForExit()
+                                          Dim tempWavPath = System.IO.Path.Combine(tempDir, Path.GetFileName(inputFile))
+                                          File.Copy(inputFile, tempWavPath, True)
 
-                                          If process.ExitCode = 0 Then
-                                              Threading.Thread.Sleep(500)
+                                          Dim adpcmArguments As String = $"--adpcm ""{tempWavPath}"""
+                                          Dim tempAdpcmBrwav = System.IO.Path.Combine(tempDir, fileNameWithoutExt & ".adpcm.brwav")
 
-                                              If System.IO.File.Exists(outputFilePath) Then
-                                                  Return True
-                                              End If
+                                          Dim adpcmSuccess = ConvertDirect(tempWavPath, adpcmArguments, tempAdpcmBrwav, fileNameWithoutExt, tempDir)
 
-                                              Dim searchPattern As String = fileNameWithoutExt & "*" & selectedFormatName & "*.brwav"
-                                              Dim possibleFiles As String() = System.IO.Directory.GetFiles(directory, searchPattern)
-
-                                              If possibleFiles.Length = 0 Then
-                                                  searchPattern = fileNameWithoutExt & "*.brwav"
-                                                  possibleFiles = System.IO.Directory.GetFiles(directory, searchPattern)
-                                              End If
-
-                                              If possibleFiles.Length > 0 Then
-                                                  Dim firstFile As String = possibleFiles(0)
-                                                  If firstFile <> outputFilePath Then
-                                                      Try
-                                                          If System.IO.File.Exists(outputFilePath) Then
-                                                              System.IO.File.Delete(outputFilePath)
-                                                          End If
-                                                          System.IO.File.Move(firstFile, outputFilePath)
-                                                      Catch ex As Exception
-                                                          If System.IO.File.Exists(firstFile) Then
-                                                              Return True
-                                                          End If
-                                                      End Try
-                                                  End If
-                                                  Return True
-                                              End If
-                                          Else
-                                              Dim errorOutput = process.StandardError.ReadToEnd()
-                                              If Not String.IsNullOrEmpty(errorOutput) Then
-                                                  System.Diagnostics.Debug.WriteLine($"转换错误:{errorOutput}")
-                                              End If
+                                          If Not adpcmSuccess OrElse Not File.Exists(tempAdpcmBrwav) Then
+                                              System.IO.Directory.Delete(tempDir, True)
+                                              Return False
                                           End If
-                                      End Using
+
+                                          Dim targetArguments As String = $"{selectedFormat} ""{tempWavPath}"""
+                                          Dim tempOutputBrwav = System.IO.Path.Combine(tempDir, fileNameWithoutExt & ".brwav")
+
+                                          Dim targetSuccess = ConvertDirect(tempWavPath, targetArguments, tempOutputBrwav, fileNameWithoutExt, tempDir)
+
+                                          If targetSuccess AndAlso File.Exists(tempOutputBrwav) AndAlso File.Exists(tempAdpcmBrwav) Then
+                                              If File.Exists(outputFilePath) Then
+                                                  File.Delete(outputFilePath)
+                                              End If
+                                              File.Copy(tempOutputBrwav, outputFilePath)
+                                              FixBrwavHeader(outputFilePath, tempAdpcmBrwav)
+                                              System.IO.Directory.Delete(tempDir, True)
+                                              Return True
+                                          Else
+                                              System.IO.Directory.Delete(tempDir, True)
+                                              Return False
+                                          End If
+                                      End If
                                   Catch ex As Exception
                                       System.Diagnostics.Debug.WriteLine($"转换失败:{ex.Message}")
+                                      Return False
                                   End Try
-                                  Return False
                               End Function)
     End Function
+
+    Private Function ConvertDirect(wavPath As String, arguments As String, expectedOutputPath As String, fileNameWithoutExt As String, searchDirectory As String) As Boolean
+        Try
+            Dim processInfo As New ProcessStartInfo()
+            processInfo.FileName = _tempExePath
+            processInfo.Arguments = arguments
+            processInfo.UseShellExecute = False
+            processInfo.RedirectStandardOutput = True
+            processInfo.RedirectStandardError = True
+            processInfo.CreateNoWindow = True
+            processInfo.WorkingDirectory = System.IO.Path.GetDirectoryName(_tempExePath)
+
+            Using process As Process = Process.Start(processInfo)
+                process.WaitForExit()
+
+                If process.ExitCode = 0 Then
+                    Threading.Thread.Sleep(500)
+
+                    If System.IO.File.Exists(expectedOutputPath) Then
+                        Return True
+                    End If
+
+                    Dim searchPattern As String = fileNameWithoutExt & "*.brwav"
+                    Dim possibleFiles As String() = System.IO.Directory.GetFiles(searchDirectory, searchPattern)
+
+                    If possibleFiles.Length > 0 Then
+                        Dim firstFile As String = possibleFiles(0)
+                        If firstFile <> expectedOutputPath Then
+                            Try
+                                If System.IO.File.Exists(expectedOutputPath) Then
+                                    System.IO.File.Delete(expectedOutputPath)
+                                End If
+                                System.IO.File.Move(firstFile, expectedOutputPath)
+                            Catch ex As Exception
+                                If System.IO.File.Exists(firstFile) Then
+                                    Return True
+                                End If
+                            End Try
+                        End If
+                        Return True
+                    End If
+                Else
+                    Dim errorOutput = process.StandardError.ReadToEnd()
+                    If Not String.IsNullOrEmpty(errorOutput) Then
+                        System.Diagnostics.Debug.WriteLine($"转换错误:{errorOutput}")
+                    End If
+                End If
+            End Using
+        Catch ex As Exception
+            System.Diagnostics.Debug.WriteLine($"转换异常:{ex.Message}")
+        End Try
+        Return False
+    End Function
+
+    Private Sub FixBrwavHeader(targetFile As String, sourceFile As String)
+        Try
+            Dim sourceHeader As Byte() = New Byte(63) {}
+
+            Using fsSource As New FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read)
+                fsSource.Read(sourceHeader, 0, 64)
+            End Using
+
+            Using fsTarget As New FileStream(targetFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None)
+                fsTarget.Seek(&H34, SeekOrigin.Begin)
+                fsTarget.Write(sourceHeader, &H34, 4)
+            End Using
+        Catch ex As Exception
+            System.Diagnostics.Debug.WriteLine($"修复头部失败:{ex.Message}")
+        End Try
+    End Sub
 
     Protected Overrides Sub OnClosed(e As EventArgs)
         Try
